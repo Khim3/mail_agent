@@ -2,17 +2,31 @@ import { ToolLoopAgent, tool } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
 
+import {
+  saveMemory,
+  loadMemory,
+  clearMemory,
+} from "@/lib/memory/fileStore";
+
 import { searchInboxEmails } from "@/lib/gmail/search";
 import { readEmailById } from "@/lib/gmail/read";
 import { cleanEmailText } from "@/lib/gmail/cleanText";
-import { extractTransactionFromText } from "@/lib/extraction/extractTransaction";
 import { sendEmail } from "@/lib/gmail/send";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
+
   const prompt =
     searchParams.get("q") ||
     "get me 5 latest mails";
+
+  // Clear memory at start of each run
+  if (
+  prompt.toLowerCase().includes("get") &&
+  prompt.toLowerCase().includes("mail")
+) {
+  clearMemory();
+}
 
   const mailAgent = new ToolLoopAgent({
     model: openai("gpt-4o-mini"),
@@ -33,13 +47,19 @@ export async function GET(req: Request) {
             refresh_token: process.env.TEST_REFRESH_TOKEN!,
           };
 
-          return searchInboxEmails(tokens, query, maxResults);
+          return await searchInboxEmails(
+            tokens,
+            query,
+            maxResults
+          );
         },
       }),
 
-      // 📩 READ
+      // 📩 READ + SAVE
       readEmail: tool({
-        description: "Read full email content by message id",
+        description:
+          "Read full email and store content into JSON memory",
+
         inputSchema: z.object({
           messageId: z.string(),
         }),
@@ -50,61 +70,77 @@ export async function GET(req: Request) {
             refresh_token: process.env.TEST_REFRESH_TOKEN!,
           };
 
-          const email = await readEmailById(tokens, messageId);
+          const email = await readEmailById(
+            tokens,
+            messageId
+          );
+
+          const cleanBody = cleanEmailText(
+            email.textBody
+          );
+
+          const memory = loadMemory();
+          memory.emails.push({
+            id: messageId,
+            subject: email.subject,
+            from: email.from,
+            body: cleanBody,
+          });
+
+          saveMemory(memory);
 
           return {
             id: messageId,
             subject: email.subject,
             from: email.from,
-            body: cleanEmailText(email.textBody),
           };
         },
       }),
 
-      // 💰 EXTRACT
-      extractTransaction: tool({
-        description: "Extract monetary transactions from text",
-        inputSchema: z.object({
-          text: z.string(),
-        }),
+      // 🧠 LOAD MEMORY
+      getStoredEmails: tool({
+        description:
+          "Load stored email contents from JSON memory",
 
-        execute: async ({ text }) => {
-          return extractTransactionFromText(text);
+        inputSchema: z.object({}),
+
+        execute: async () => {
+          const memory = loadMemory();
+          return memory.emails || [];
         },
       }),
 
       // ✉️ SEND
       sendMail: tool({
-        description: "Send email with extracted transactions",
+        description:
+          "Send email using stored email context",
+
         inputSchema: z.object({
           to: z.string(),
-          transactions: z.array(
-            z.object({
-              amount: z.number(),
-              currency: z.string(),
-            })
-          ),
         }),
 
-        execute: async ({ to, transactions }) => {
+        execute: async ({ to }) => {
           const tokens = {
             access_token: process.env.TEST_ACCESS_TOKEN!,
             refresh_token: process.env.TEST_REFRESH_TOKEN!,
           };
 
-          const body =
-            "Extracted Transactions:\n\n" +
-            transactions
-              .map(
-                (t) => `- ${t.amount} ${t.currency}`
-              )
-              .join("\n");
+          const memory = loadMemory();
+
+          const content = memory.emails
+            .map(
+              (e, i) =>
+                `Email ${i + 1}\nSubject: ${e.subject}\nFrom: ${e.from}\n\n${e.body}`
+            )
+            .join(
+              "\n\n----------------\n\n"
+            );
 
           await sendEmail(
             tokens,
             to,
-            "Extracted Spending",
-            body
+            "Forwarded Emails",
+            content
           );
 
           return { success: true };
@@ -115,28 +151,26 @@ export async function GET(req: Request) {
 
   const result = await mailAgent.generate({
     prompt: `
-You are an accounting email assistant.
+You are an email assistant.
 
 Rules:
-1) If user asks for emails → call searchEmails
-2) If user asks to view content → call readEmail
-3) If user asks to extract spending → call extractTransaction
-4) If user asks to send results → call sendMail
+1) If user asks to get emails → call searchEmails
+2) After search → call readEmail for each id
+3) Email bodies are saved into JSON memory
+4) If user says "send them" → call sendMail
 
 Examples:
 
-"get me 3 invoice mails from steam last month and extract spending"
-→ searchEmails → readEmail → extractTransaction
+"get me 5 mails yesterday"
+→ searchEmails → readEmail
 
-"get me 3 invoice mails from steam last month and extract spending and send to nhatkhiem003@gmail.com"
-→ searchEmails → readEmail → extractTransaction → sendMail
+"send them to nhatkhiem003@gmail.com"
+→ sendMail
 
 User request: ${prompt}
 `,
   });
-
   return Response.json({
-    answer: cleanEmailText(result.text),
-
+    answer: result.text,
   });
 }

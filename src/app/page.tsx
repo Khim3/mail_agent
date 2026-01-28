@@ -2,128 +2,111 @@
 
 import { useState } from "react";
 
-type MessageRef = {
-  id: string;
-  threadId: string;
+type Step = {
+  tool: string;
+  input?: any;
+  output?: any;
 };
 
 export default function Home() {
-  const [keyword, setKeyword] = useState("");
-  const [messages, setMessages] = useState<MessageRef[]>([]);
-  const [selectedEmail, setSelectedEmail] = useState<any>(null);
+  const [query, setQuery] = useState("");
+  const [answer, setAnswer] = useState<string | null>(null);
+  const [steps, setSteps] = useState<Step[]>([]);
   const [loading, setLoading] = useState(false);
-  const [reading, setReading] = useState(false);
 
-  async function handleSearch() {
+  async function runAgent() {
     setLoading(true);
-    setSelectedEmail(null);
+    setAnswer(null);
+    setSteps([]);
 
     const res = await fetch(
-      `/api/test/gmail/search?q=${encodeURIComponent(keyword)}`
+      `/api/agent/mail?q=${encodeURIComponent(query)}`
     );
 
     const data = await res.json();
-    setMessages(data.messages || []);
+
+    setAnswer(data.answer);
+    setSteps(data.steps || []);
     setLoading(false);
-  }
-
-  async function handleRead(id: string) {
-    setReading(true);
-
-    const res = await fetch(
-      `/api/test/gmail/read?id=${id}`
-    );
-
-    const data = await res.json();
-    setSelectedEmail(data);
-    setReading(false);
   }
 
   return (
     <main className="min-h-screen bg-gray-900 text-white p-10">
-      <div className="max-w-5xl mx-auto grid grid-cols-2 gap-6">
+      <div className="max-w-4xl mx-auto space-y-6">
 
-        {/* LEFT: Search */}
-        <div className="space-y-4">
+        {/* Header */}
+        <h1 className="text-3xl font-bold">
+          📬 Agentic Mail Demo
+        </h1>
 
-          <h1 className="text-3xl font-bold">
-            📬 Gmail Agent Console
-          </h1>
+        {/* Input */}
+        <div className="flex gap-2">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="get me 2 invoice mails from steam last month and extract spending and send to me"
+            className="flex-1 p-3 rounded bg-gray-800 border border-gray-700 outline-none"
+          />
 
-          <div className="flex gap-2">
-            <input
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              placeholder="invoice OR aws OR receipt"
-              className="flex-1 p-3 rounded bg-gray-800 border border-gray-700 outline-none"
-            />
+          <button
+            onClick={runAgent}
+            className="px-5 py-3 bg-blue-600 rounded hover:bg-blue-500"
+          >
+            Run Agent
+          </button>
+        </div>
 
-            <button
-              onClick={handleSearch}
-              className="px-5 py-3 bg-blue-600 rounded hover:bg-blue-500"
-            >
-              Search
-            </button>
+        {/* Loading */}
+        {loading && (
+          <p className="text-blue-400">
+            Agent is thinking...
+          </p>
+        )}
+
+        {/* Answer */}
+        {answer && (
+          <div className="bg-gray-800 p-4 rounded">
+            <h2 className="font-semibold mb-2">
+              ✅ Final Answer
+            </h2>
+            <pre className="whitespace-pre-wrap">
+              {answer}
+            </pre>
           </div>
+        )}
 
-          {loading && (
-            <p className="text-blue-400">Searching...</p>
-          )}
+        {/* Steps */}
+        {steps.length > 0 && (
+          <div className="bg-gray-800 p-4 rounded space-y-3">
 
-          <div className="space-y-2 max-h-[500px] overflow-y-auto">
-            {messages.map((m) => (
+            <h2 className="font-semibold">
+              🔁 Tool Call Stages
+            </h2>
+
+            {steps.map((s, i) => (
               <div
-                key={m.id}
-                onClick={() => handleRead(m.id)}
-                className="p-3 rounded bg-gray-800 cursor-pointer hover:bg-gray-700"
+                key={i}
+                className="bg-gray-900 p-3 rounded"
               >
-                <p className="text-sm text-gray-300">
-                  ID: {m.id}
+                <p className="text-blue-400">
+                  Step {i + 1}: {s.tool}
                 </p>
+
+                {s.input && (
+                  <pre className="text-sm mt-1">
+                    Input: {JSON.stringify(s.input, null, 2)}
+                  </pre>
+                )}
+
+                {s.output && (
+                  <pre className="text-sm mt-1">
+                    Output: {JSON.stringify(s.output, null, 2)}
+                  </pre>
+                )}
               </div>
             ))}
           </div>
-
-        </div>
-
-        {/* RIGHT: Email Viewer */}
-        <div className="bg-gray-800 rounded-lg p-4 overflow-y-auto">
-
-          {!selectedEmail && !reading && (
-            <p className="text-gray-400">
-              Select an email to view content
-            </p>
-          )}
-
-          {reading && (
-            <p className="text-blue-400">
-              Loading email...
-            </p>
-          )}
-
-          {selectedEmail && (
-            <div className="space-y-4">
-
-              <div>
-                <h2 className="text-xl font-semibold">
-                  {selectedEmail.subject}
-                </h2>
-                <p className="text-sm text-gray-400">
-                  From: {selectedEmail.from}
-                </p>
-                <p className="text-sm text-gray-400">
-                  To: {selectedEmail.to}
-                </p>
-              </div>
-
-              <pre className="whitespace-pre-wrap text-sm">
-                {selectedEmail.body}
-              </pre>
-
-            </div>
-          )}
-
-        </div>
+        )}
 
       </div>
     </main>

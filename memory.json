@@ -1,0 +1,16 @@
+{
+  "emails": [
+    {
+      "id": "19be3deffa95d703",
+      "subject": "[test po update]",
+      "from": "Khiem Nguyen <nhkhi3m1602@gmail.com>",
+      "body": "Ví điện tử MoMo Ví điện tử MoMo Hóa đơn điện tử MoMo Xin chào bạn, Rất cảm\nơn bạn đã sử dụng dịch vụ của Ví điện tử MoMo. Khoản thanh toán 50.000\nđồng. Xin cảm ơn"
+    },
+    {
+      "id": "19be3cc177e3de5c",
+      "subject": "[testing PO update]",
+      "from": "Khiem Nguyen <nhkhi3m1602@gmail.com>",
+      "body": "Ví điện tử MoMo Ví điện tử MoMo Hóa đơn điện tử MoMo Xin chào bạn, Rất cảm\nơn bạn đã sử dụng dịch vụ của Ví điện tử MoMo. Khoản thanh toán 6.667 đồng.\nXin cảm ơn"
+    }
+  ]
+}

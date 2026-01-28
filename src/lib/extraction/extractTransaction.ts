@@ -5,9 +5,8 @@ export function extractTransactionFromText(
 ): Transaction[] {
   const results: Transaction[] = [];
 
-  // number + currency  OR currency + number
   const regex =
-    /([0-9]{1,3}(?:[.,][0-9]{3})*(?:[.,][0-9]+)?)\s*(đồng|VND|USD|\$)|(\$|USD|VND|đồng)\s*([0-9]{1,3}(?:[.,][0-9]{3})*(?:[.,][0-9]+)?)/gi;
+    /([0-9]{1,3}(?:[.,][0-9]{3})*(?:[.,][0-9]+)?)\s*(đồng|VND|USD|\$|đ|₫)|(\$|USD|VND|đồng|đ|₫)\s*([0-9]{1,3}(?:[.,][0-9]{3})*(?:[.,][0-9]+)?)/gi;
 
   let match;
 
@@ -16,11 +15,9 @@ export function extractTransactionFromText(
     let currencySymbol: string;
 
     if (match[1] && match[2]) {
-      // 50.000 đồng
       rawAmount = match[1];
       currencySymbol = match[2];
     } else {
-      // USD 50.000
       rawAmount = match[4];
       currencySymbol = match[3];
     }
@@ -34,12 +31,14 @@ export function extractTransactionFromText(
     const currency =
       currencySymbol === "$"
         ? "USD"
-        : currencySymbol.toUpperCase();
+        : ["đ", "đồng", "₫"].includes(currencySymbol.toLowerCase())
+          ? "VND"
+          : currencySymbol.toUpperCase();
 
     results.push({
       amount,
       currency,
-      description: `${rawAmount} ${currencySymbol}`,
+      description: `${rawAmount}${currencySymbol}`,
     });
   }
 
