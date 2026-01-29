@@ -10,13 +10,6 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from pydantic import BaseModel, Field
-from langchain.agents import create_agent
-from langchain.agents.middleware import wrap_tool_call
-from langchain.messages import ToolMessage
-from langchain.agents import create_agent
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_ollama import ChatOllama
-from langgraph.graph import MessagesState
 from langchain.messages import SystemMessage, HumanMessage, ToolMessage
 import re
 from langchain.agents.structured_output import ToolStrategy

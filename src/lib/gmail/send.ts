@@ -35,6 +35,7 @@ export async function sendEmail(
       raw: encodedMessage,
     },
   });
-
+  // log out the to mail address for debugging
+  console.log(`Email sent to: ${to}`);
   return res.data;
 }
