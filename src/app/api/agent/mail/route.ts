@@ -29,7 +29,7 @@ export async function GET(req: Request) {
 }
 
   const mailAgent = new ToolLoopAgent({
-    model: openai("gpt-4o-mini"),
+    model: openai("gpt-4.1-mini"),
 
     tools: {
 
@@ -164,8 +164,7 @@ Recipient handling policy:
 - If the user explicitly specifies recipient(s), treat them as PRIMARY recipients (To).
 - For recurring tasks, additional stakeholders may be inferred as CC
   based on consistent historical email patterns for the same task.
-- Only restrict recipients when the user explicitly states exclusivity
-  (e.g., “only send to X”, “do not include anyone else”).
+
 
 Tool usage rules:
 1) If the user asks to retrieve or find emails → call searchEmails.
@@ -182,6 +181,10 @@ Tool usage rules:
    - then call sendMail.
   - When inferring recipients, resolve organizational roles
 to their corresponding addresses using the role aliases above.
+    - some aliases:
+      - "HR" → "nhatkhiem003@gmail.com"
+      "IT" → "nhkhi3m1602@gmail.com"
+
 
 Ambiguity handling:
 - If recipients or handling are ambiguous, make a reasonable assumption
