@@ -24,7 +24,7 @@ export function loadMemory(): MemoryStore {
     MEMORY_PATH,
     "utf-8"
   );
-
+  console.log('memory tool is called');
   return JSON.parse(raw) as MemoryStore;
 }
 
