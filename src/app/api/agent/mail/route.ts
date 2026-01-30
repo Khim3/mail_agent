@@ -204,12 +204,8 @@ User: "Summarize them and prepare the email as usual"
 
 User: "Send it"
 → getStoredEmails
-→ infer all recipients based on historical email content for the same task
-→ sendMail
+→ infer additional stakeholders, departments, mail addresses from historical payroll context for the same task, identify all relevant recipients
 
-User: "Send it to someone"
-→ getStoredEmails
-→ infer additional stakeholders, departments, mail addresses from historical payroll context for the same task, identify all recipients
 → sendMail
 
 User request: ${prompt}
