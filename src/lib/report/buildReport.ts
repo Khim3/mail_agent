@@ -7,7 +7,7 @@ export function buildSpendingReport(
   const stats = computeStats(transactions);
 
   let report = `Monthly Spending Report\n`;
-  report += `======================\n\n`;
+  report += `=====================\n\n`;
 
   for (const s of stats) {
     report += `Currency: ${s.currency}\n`;

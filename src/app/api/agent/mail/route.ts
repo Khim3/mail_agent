@@ -139,7 +139,7 @@ export async function GET(req: Request) {
           await sendEmail(
             tokens,
             to,
-            "Forwarded Emails",
+            "Forwarded Emails from AI Assistant with chatGPT 4.1-mini",
             content
           );
 
@@ -175,7 +175,7 @@ Tool usage rules:
    call getStoredEmails to load historical email context.
 5) If the user asks to send the email →
    - call getStoredEmails,
-   - determine primary recipients from explicit user input (if any),
+   - determine primary recipients from explicit user input (if any), identify all relevant recipients
    - infer additional stakeholders from historical context for the same recurring task
      unless explicitly restricted by the user,
    - then call sendMail.
@@ -207,7 +207,7 @@ User: "Summarize them and prepare the email as usual"
 
 User: "Send it"
 → getStoredEmails
-→ infer additional stakeholders, departments, mail addresses from historical payroll context for the same task, identify all relevant recipients
+→ infer additional stakeholders, departments, mail addresses from historical payroll context for the same task, identify all relevant essential recipients
 
 → sendMail
 
