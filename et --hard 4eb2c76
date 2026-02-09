@@ -1,0 +1,12 @@
+[33m5bf5780[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m add Recipient Confirmation Gate (RCG) for mitigating demo
+[33m4eb2c76[m Enhance email functionality and improve report formatting
+[33mc68b3b1[m Update mail agent model and refine recipient handling rules
+[33m78f8dc6[m refactor: enhance recipient inference for email sending based on historical payroll context
+[33mc5b0813[m refactor: streamline email handling and contextual inference in mail agent
+[33me283f2b[m complete basic demo
+[33m349568d[m add json as temp memory for agent
+[33m3a4fa5f[m add send message tool
+[33m886787d[m add search and read tool to agent
+[33maf7c567[m show info after retrieval
+[33m8b157d4[m added send email feature
+[33m3cfe9fa[m Initial commit
