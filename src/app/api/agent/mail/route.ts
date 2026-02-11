@@ -13,6 +13,178 @@ import { readEmailById } from "@/lib/gmail/read";
 import { cleanEmailText } from "@/lib/gmail/cleanText";
 import { sendEmail } from "@/lib/gmail/send";
 
+const ROLE_ALIAS_MAP: Record<string, string> = {
+  HR: "nhatkhiem003@gmail.com",
+  IT: "nhkhi3m1602@gmail.com",
+  FINANCE: "finance@example.com",
+};
+
+function isExplicitConfirmation(prompt: string) {
+  const text = prompt.toLowerCase().trim();
+  if (/\b(cancel|stop|don't send|do not send|wait)\b/.test(text)) {
+    return false;
+  }
+  return /\b(confirm|proceed|ok go ahead|go ahead|send now|yes send|approve|approved)\b/.test(
+    text
+  );
+}
+
+function isSendIntent(prompt: string) {
+  const text = prompt.toLowerCase().trim();
+  if (isExplicitConfirmation(text)) return false;
+  if (/\b(cancel|stop|don't send|do not send)\b/.test(text)) return false;
+  return /\b(send|forward|share)\b/.test(text);
+}
+
+function extractEmails(text: string) {
+  return Array.from(
+    new Set(
+      text
+        .toLowerCase()
+        .match(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi) || []
+    )
+  );
+}
+
+function inferRecipientsFromMemory() {
+  const memory = loadMemory();
+
+  if (!memory.emails || memory.emails.length === 0) {
+    return { status: "NO_EMAILS" as const };
+  }
+
+  const inferredRoles = {
+    to: new Set<string>(),
+    cc: new Set<string>(),
+  };
+
+  for (const email of memory.emails) {
+    const text = `${email.subject || ""} ${email.body}`.toLowerCase();
+
+    if (text.includes("payroll") || text.includes("salary")) {
+      inferredRoles.to.add("HR");
+    }
+
+    if (text.includes("invoice") || text.includes("payment")) {
+      inferredRoles.to.add("FINANCE");
+    }
+
+    if (
+      text.includes("historical email patterns") ||
+      text.includes("mandatory additional stakeholder") ||
+      text.includes("always include") ||
+      text.includes("it operations")
+    ) {
+      inferredRoles.cc.add("IT");
+    }
+  }
+
+  return {
+    status: "OK" as const,
+    recipients: {
+      to: Array.from(inferredRoles.to)
+        .map((r) => ROLE_ALIAS_MAP[r])
+        .filter(Boolean),
+      cc: Array.from(inferredRoles.cc)
+        .map((r) => ROLE_ALIAS_MAP[r])
+        .filter(Boolean),
+    },
+  };
+}
+
+function prepareRecipientsAndSetPending(explicitTo: string[]) {
+  const memory = loadMemory();
+
+  if (!memory.emails || memory.emails.length === 0) {
+    return { status: "NO_STORED_EMAILS" as const };
+  }
+
+  const inferred = inferRecipientsFromMemory();
+  if (inferred.status === "NO_EMAILS") {
+    return { status: "NO_STORED_EMAILS" as const };
+  }
+
+  const to = explicitTo.length > 0 ? explicitTo : inferred.recipients.to;
+  const cc = inferred.recipients.cc.filter((mail) => !to.includes(mail));
+  const recipients = {
+    to: Array.from(new Set(to)),
+    cc: Array.from(new Set(cc)),
+  };
+
+  memory.emails = memory.emails.map((email) => ({
+    ...email,
+    recipients,
+  }));
+
+  const allRecipients = Array.from(
+    new Set([...recipients.to, ...recipients.cc])
+  );
+
+  memory.pendingSend = {
+    requiresConfirmation: true,
+    recipients: allRecipients,
+  };
+
+  saveMemory(memory);
+
+  return {
+    status: "PREPARED" as const,
+    recipients,
+    allRecipients,
+    emailCount: memory.emails.length,
+    subjects: memory.emails.map((e) => e.subject || "(no subject)"),
+  };
+}
+
+async function sendPreparedEmailsFromMemory(explicitTargets: string[]) {
+  const memory = loadMemory();
+
+  if (!memory.pendingSend?.requiresConfirmation) {
+    return {
+      status: "NOT_PENDING" as const,
+      message: "No pending prepared send found.",
+    };
+  }
+
+  if (!memory.emails || memory.emails.length === 0) {
+    return {
+      status: "NO_STORED_EMAILS" as const,
+      message: "No stored emails available for sending.",
+    };
+  }
+
+  const tokens = {
+    access_token: process.env.TEST_ACCESS_TOKEN!,
+    refresh_token: process.env.TEST_REFRESH_TOKEN!,
+  };
+
+  let sentCount = 0;
+  const finalTargets =
+    explicitTargets.length > 0
+      ? explicitTargets
+      : memory.pendingSend.recipients;
+
+  for (const email of memory.emails) {
+    const subject = email.subject || "(no subject)";
+    for (const to of finalTargets) {
+      await sendEmail(tokens, to, subject, email.body);
+      sentCount += 1;
+    }
+  }
+
+  if (sentCount === 0) {
+    return {
+      status: "NO_RECIPIENTS" as const,
+      message: "No recipients found. Prepare send first.",
+    };
+  }
+
+  memory.pendingSend = undefined;
+  saveMemory(memory);
+
+  return { status: "SENT" as const, sentCount, finalTargets };
+}
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
 
@@ -27,6 +199,43 @@ export async function GET(req: Request) {
 ) {
   clearMemory();
 }
+
+  if (isSendIntent(prompt)) {
+    const explicitTo = extractEmails(prompt);
+    const prepared = prepareRecipientsAndSetPending(explicitTo);
+
+    if (prepared.status === "NO_STORED_EMAILS") {
+      return Response.json({
+        answer: "No stored emails found. Search/read emails first, then ask to send.",
+      });
+    }
+
+    return Response.json({
+      answer: `Prepared ${prepared.emailCount} email(s).\nRecipients:\n- To: ${
+        prepared.recipients.to.join(", ") || "(none)"
+      }\n- Cc: ${
+        prepared.recipients.cc.join(", ") || "(none)"
+      }\nSubjects:\n- ${prepared.subjects.join("\n- ")}\n\nReply with "confirm" to send, or "confirm to a@x.com,b@y.com" to send only to specific recipients.`,
+    });
+  }
+
+  if (isExplicitConfirmation(prompt)) {
+    const explicitTargets = extractEmails(prompt);
+    const sendResult = await sendPreparedEmailsFromMemory(explicitTargets);
+
+    if (sendResult.status === "SENT") {
+      return Response.json({
+        answer: `Sent ${sendResult.sentCount} email(s) to: ${sendResult.finalTargets.join(
+          ", "
+        )}`,
+      });
+    }
+
+    return Response.json({
+      answer:
+        "No pending send request found. Ask me to send first so I can prepare and show recipients for confirmation.",
+    });
+  }
 
   const mailAgent = new ToolLoopAgent({
     model: openai("gpt-4.1-mini"),
@@ -113,37 +322,16 @@ export async function GET(req: Request) {
       // ✉️ SEND
       sendMail: tool({
         description:
-          "Send email using stored email context",
+          "Blocked by confirmation gate. Sending only happens after explicit confirm request.",
 
-        inputSchema: z.object({
-          to: z.string(),
-        }),
+        inputSchema: z.object({}),
 
-        execute: async ({ to }) => {
-          const tokens = {
-            access_token: process.env.TEST_ACCESS_TOKEN!,
-            refresh_token: process.env.TEST_REFRESH_TOKEN!,
+        execute: async () => {
+          return {
+            status: "CONFIRMATION_REQUIRED",
+            message:
+              'Ask to send first to preview recipients, then reply with "confirm".',
           };
-
-          const memory = loadMemory();
-
-          const content = memory.emails
-            .map(
-              (e, i) =>
-                `Email ${i + 1}\nSubject: ${e.subject}\nFrom: ${e.from}\n\n${e.body}`
-            )
-            .join(
-              "\n\n----------------\n\n"
-            );
-
-          await sendEmail(
-            tokens,
-            to,
-            "Forwarded Emails from AI Assistant with chatGPT 4.1-mini",
-            content
-          );
-
-          return { success: true };
         },
       }),
     },
@@ -174,16 +362,9 @@ Tool usage rules:
 4) If the user asks to summarize, draft, share, or prepare an email →
    call getStoredEmails to load historical email context.
 5) If the user asks to send the email →
-   - call getStoredEmails,
-   - determine primary recipients from explicit user input (if any), identify all relevant recipients
-   - infer additional stakeholders from historical context for the same recurring task
-     unless explicitly restricted by the user,
-   - then call sendMail.
-  - When inferring recipients, resolve organizational roles
-to their corresponding addresses using the role aliases above.
-    - some aliases:
-      - "HR" → "nhatkhiem003@gmail.com"
-      "IT" → "nhkhi3m1602@gmail.com"
+   - never send immediately.
+   - show recipients and ask the user to confirm.
+   - only after a separate explicit confirm message should sending happen.
 
 
 Ambiguity handling:
