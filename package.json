@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "trial:mail": "node scripts/mail-agent-trial-runner.mjs"
+    "trial:mail": "node scripts/mail-agent-trial-runner.mjs",
+    "test:agent:two-step": "node scripts/agent-two-step-test.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.21",

@@ -13,6 +13,17 @@ import { readEmailById } from "@/lib/gmail/read";
 import { cleanEmailText } from "@/lib/gmail/cleanText";
 import { sendEmail } from "@/lib/gmail/send";
 
+function normalizeRecipientField(
+  value: string | string[] | undefined
+): string[] {
+  if (!value) return [];
+  const joined = Array.isArray(value) ? value.join(",") : value;
+  return joined
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
 
@@ -116,10 +127,11 @@ export async function GET(req: Request) {
           "Send email using stored email context",
 
         inputSchema: z.object({
-          to: z.string(),
+          to: z.union([z.string(), z.array(z.string())]),
+          cc: z.union([z.string(), z.array(z.string())]).optional(),
         }),
 
-        execute: async ({ to }) => {
+        execute: async ({ to, cc }) => {
           const tokens = {
             access_token: process.env.TEST_ACCESS_TOKEN!,
             refresh_token: process.env.TEST_REFRESH_TOKEN!,
@@ -136,14 +148,21 @@ export async function GET(req: Request) {
               "\n\n----------------\n\n"
             );
 
-          await sendEmail(
-            tokens,
-            to,
-            "Forwarded Emails from AI Assistant with chatGPT 4.1-mini",
-            content
+          const toList = normalizeRecipientField(to);
+          const ccList = normalizeRecipientField(cc);
+          const recipientMailAddress = Array.from(
+            new Set([...toList, ...ccList].map((e) => e.toLowerCase()))
           );
 
-          return { success: true };
+          await sendEmail(
+            tokens,
+            toList,
+            "Forwarded Emails from AI Assistant with chatGPT 4.1-mini",
+            content,
+            ccList
+          );
+
+          return { success: true, recipientMailAddress };
         },
       }),
     },
