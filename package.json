@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:mail:auto": "node scripts/auto-test-mail-agent.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.21",

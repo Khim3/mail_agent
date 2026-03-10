@@ -16,7 +16,6 @@ import { sendEmail } from "@/lib/gmail/send";
 const ROLE_ALIAS_MAP: Record<string, string> = {
   HR: "nhatkhiem003@gmail.com",
   IT: "nhkhi3m1602@gmail.com",
-  FINANCE: "finance@example.com",
 };
 
 function isExplicitConfirmation(prompt: string) {
@@ -44,6 +43,17 @@ function extractEmails(text: string) {
         .match(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi) || []
     )
   );
+}
+
+function extractTargets(prompt: string) {
+  const emails = extractEmails(prompt);
+  const text = prompt.toLowerCase();
+
+  const roleEmails = Object.entries(ROLE_ALIAS_MAP)
+    .filter(([role]) => new RegExp(`\\b${role.toLowerCase()}\\b`).test(text))
+    .map(([, email]) => email);
+
+  return Array.from(new Set([...emails, ...roleEmails]));
 }
 
 function inferRecipientsFromMemory() {
@@ -201,7 +211,7 @@ export async function GET(req: Request) {
 }
 
   if (isSendIntent(prompt)) {
-    const explicitTo = extractEmails(prompt);
+    const explicitTo = extractTargets(prompt);
     const prepared = prepareRecipientsAndSetPending(explicitTo);
 
     if (prepared.status === "NO_STORED_EMAILS") {
@@ -220,7 +230,7 @@ export async function GET(req: Request) {
   }
 
   if (isExplicitConfirmation(prompt)) {
-    const explicitTargets = extractEmails(prompt);
+    const explicitTargets = extractTargets(prompt);
     const sendResult = await sendPreparedEmailsFromMemory(explicitTargets);
 
     if (sendResult.status === "SENT") {
