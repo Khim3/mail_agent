@@ -1,41 +1,51 @@
-import { getGmailService } from "./getService";
+import fs from "node:fs";
+import path from "node:path";
+
+const RECIPIENT_LOG_PATH = path.join(
+  process.cwd(),
+  "trial-results",
+  "sent-recipients.json",
+);
+
+function readRecipientLogs() {
+  if (!fs.existsSync(RECIPIENT_LOG_PATH)) {
+    return [] as string[];
+  }
+
+  try {
+    const parsed = JSON.parse(fs.readFileSync(RECIPIENT_LOG_PATH, "utf-8"));
+    return Array.isArray(parsed)
+      ? parsed.filter((value): value is string => typeof value === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function appendRecipientLog(recipient: string) {
+  const logs = readRecipientLogs();
+  logs.push(recipient);
+
+  fs.mkdirSync(path.dirname(RECIPIENT_LOG_PATH), { recursive: true });
+  fs.writeFileSync(RECIPIENT_LOG_PATH, JSON.stringify(logs, null, 2), "utf-8");
+}
 
 /**
  * Send plain text email
  */
 export async function sendEmail(
-  tokens: {
+  _tokens: {
     access_token: string;
     refresh_token?: string;
   },
   to: string,
-  subject: string,
-  body: string
+  _subject: string,
+  _body: string
 ) {
-  const gmail = getGmailService(tokens);
+  appendRecipientLog(to);
+  console.log(`Email recipient: ${to}`);
 
-  const message = [
-    `To: ${to}`,
-    "Content-Type: text/plain; charset=utf-8",
-    "MIME-Version: 1.0",
-    `Subject: ${subject}`,
-    "",
-    body,
-  ].join("\n");
-
-  const encodedMessage = Buffer.from(message)
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-
-  const res = await gmail.users.messages.send({
-    userId: "me",
-    requestBody: {
-      raw: encodedMessage,
-    },
-  });
-  // log out the to mail address for debugging
-  console.log(`Email sent to: ${to}`);
-  return res.data;
+  return {
+    id: `logged-only-${Date.now()}`,
+  };
 }
