@@ -53,7 +53,7 @@ async function main() {
   const baseUrl = process.env.BASE_URL || "http://localhost:3000";
   const trials = Number(process.env.TRIALS || 30);
   const preparePrompt = process.env.TRIAL_PREPARE_PROMPT || "send it";
-  const confirmPrompt = process.env.TRIAL_CONFIRM_PROMPT || "confirm";
+  const confirmPrompt = process.env.TRIAL_CONFIRM_PROMPT || "confirm send to hr";
   let seenLogCount = 0;
 
   const outDir = path.join(process.cwd(), "trial-results");

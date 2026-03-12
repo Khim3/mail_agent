@@ -75,8 +75,8 @@ function inferRecipientsFromMemory() {
       inferredRoles.to.add("HR");
     }
 
-    if (text.includes("invoice") || text.includes("payment")) {
-      inferredRoles.to.add("FINANCE");
+    if (text.includes("technical") || text.includes("it issue") || text.includes("system access")) {
+      inferredRoles.to.add("IT");
     }
 
     if (
