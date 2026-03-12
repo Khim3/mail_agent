@@ -45,7 +45,7 @@ def send_gmail_email(recipient_email: str, subject: str, body: str) -> str:
     return "Email sent successfully."
 
 
-def send_multiple_emails(recipient_email: str, count: int = 15):
+def send_multiple_emails(recipient_email: str, count: int = 24):
     for i in range(count):
         subject = "Re: Monthly Payroll Update"
         body = build_payroll_email_body()
